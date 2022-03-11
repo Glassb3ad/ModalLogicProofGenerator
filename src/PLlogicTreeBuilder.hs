@@ -1,6 +1,7 @@
 module PLlogicTreeBuilder where
 
 import PLlogicType
+import Data.Maybe (isNothing, fromJust)
 
 
 data ProofTree = ComplexStraight Proposition ProofTree ProofTree
@@ -34,12 +35,53 @@ checkValidity p =
                   where x = checkCounterExampleFromTree (buildTree p) [] []
 
 checkCounterExampleFromTree :: ProofTree -> [ProofTree] -> [ProofTree] -> [ProofTree]
-checkCounterExampleFromTree x y c = []
+checkCounterExampleFromTree (AtomTrue n) atoms [] = if checkAtomsForContradictions x
+                                                    then []
+                                                    else x
+                                                    where x = (AtomTrue n) : atoms
+
+checkCounterExampleFromTree (AtomFalse n) atoms [] = if checkAtomsForContradictions x
+                                                    then []
+                                                    else x
+                                                    where x = (AtomFalse n) : atoms
+
+checkCounterExampleFromTree (AtomTrue n) atoms memory = if checkAtomsForContradictions x
+                                                        then []
+                                                        else if not (isNothing y)
+                                                            then checkCounterExampleFromTree (fromJust y) x (cleanOneFromMemory memory)
+                                                            else checkCounterExampleFromTree (head memory) x (tail memory)
+                                                        where x = (AtomTrue n) : atoms
+                                                              y = getFirstStraightProposition memory
+
+checkCounterExampleFromTree (AtomFalse n) atoms memory = if checkAtomsForContradictions x
+                                                        then []
+                                                        else if not (isNothing y)
+                                                            then checkCounterExampleFromTree (fromJust y) x (cleanOneFromMemory memory)
+                                                            else checkCounterExampleFromTree (head memory) x (tail memory)
+                                                        where x = (AtomFalse n) : atoms
+                                                              y = getFirstStraightProposition memory
+checkCounterExampleFromTree (ComplexStraight x y z) atoms memory 
+   | isNonBrancher(y) =  checkCounterExampleFromTree y atoms (z : memory)
+   | isNonBrancher(z) =  checkCounterExampleFromTree y atoms (z : memory)
+   | not (isNothing (getFirstStraightProposition memory)) = checkCounterExampleFromTree (fromJust (getFirstStraightProposition memory)) atoms (y : z : cleanOneFromMemory memory)
+   | otherwise = checkCounterExampleFromTree y atoms (z : memory)
+
+checkCounterExampleFromTree (ComplexBranches x y z) atoms memory 
+   | not (checkAtomsForContradictions (a)) = b
+   | otherwise = a
+   where a = checkCounterExampleFromTree y atoms memory
+         b = checkCounterExampleFromTree z atoms memory
+
+
+
 --checkValidityFromTree (ComplexBranches p treeA treeB) atoms = checkValidityFromTree treeA atoms && checkValidityFromTree treeB atoms
 -- checkValidityFromTree (ComplexStraight p treeA treeB) atoms = ??? 
 
-
-
+isNonBrancher :: ProofTree -> Bool
+isNonBrancher (ComplexStraight x y z) = True
+isNonBrancher (AtomFalse n) = True
+isNonBrancher (AtomTrue n) = True
+isNonBrancher _ = False 
 
 --getFirstStraightProposition function checks whether memory contain propositions that do not introduce branches and return first non brancher.
 
